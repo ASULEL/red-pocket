@@ -41,7 +41,6 @@ public class JwtUtils {
         String token = builder.withExpiresAt(instance.getTime())
                 .sign(Algorithm.HMAC256(Signature));
 
-
         return token;
     }
 

@@ -4,9 +4,10 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
 import java.io.Serializable;
 import java.util.Date;
-import lombok.Data;
 
 /**
  * 
@@ -37,19 +38,15 @@ public class RedRecord implements Serializable {
     private Integer moneyTotal;
 
     /**
-     * 人数
+     * 红包总数
      */
-    private Integer amount;
+    private Integer total;
 
     /**
      * 创建时间
      */
     private Date createTime;
 
-    /**
-     * 
-     */
-    private Integer isActive;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

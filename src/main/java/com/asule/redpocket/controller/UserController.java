@@ -32,7 +32,7 @@ public class UserController {
 
     @GetMapping("/user/login")
     public CommonResult login(User user) {
-
+        log.info("user" + user);
         CommonResult commonResult = new CommonResult();
 
         try {
@@ -49,6 +49,7 @@ public class UserController {
             User userDB = userService.login(user);
             Map<String, String> payload = new HashMap<>();
             payload.put("phone", userDB.getPhone());
+
             //3.生成jwt令牌
             String token = JwtUtils.getToken(payload);
             map.put("token", token);

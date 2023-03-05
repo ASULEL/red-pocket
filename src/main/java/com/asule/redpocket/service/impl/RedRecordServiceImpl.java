@@ -39,7 +39,7 @@ public class RedRecordServiceImpl extends ServiceImpl<RedRecordMapper, RedRecord
 
         try {
             Integer moneyTotal = redRecord.getMoneyTotal();
-            Integer amount = redRecord.getAmount();
+            Integer total = redRecord.getTotal();
 
             //1.红包整体记录添加入数据库
             log.info("*****************红包整体记录添加入数据库");
@@ -47,15 +47,15 @@ public class RedRecordServiceImpl extends ServiceImpl<RedRecordMapper, RedRecord
 
             //2.使用二倍均值算法生成随机金额红包
             log.info("*****************使用二倍均值算法生成随机金额红包");
-            List<Integer> list = RedEnvelopeUtils.divideRedPackage(moneyTotal * 100, amount);
+            List<Integer> list = RedEnvelopeUtils.divideRedPackage(moneyTotal * 100, total);
             log.info("*****************二倍均值算法生成的红包" + list);
 
             //3.将随机生成的红包添加入数据库当中
             log.info("*****************将随机生成的红包添加入数据库当中");
             List<RedDetail> redDetailList = new ArrayList<>();
-            RedDetail redDetail = new RedDetail();
             for (int i = 0; i < list.size(); i++) {
                 log.info("随机金额为：{}分，即{}元", list.get(i), new BigDecimal(list.get(i)).divide(new BigDecimal(100)));
+                RedDetail redDetail = new RedDetail();
                 redDetail.setRecordId(redRecord.getId());
                 redDetail.setAmount(new BigDecimal(list.get(i)).divide(new BigDecimal(100)));
                 redDetail.setIsActive(1);
