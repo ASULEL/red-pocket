@@ -1,5 +1,6 @@
 package com.asule.redpocket.controller;
 
+import cn.hutool.http.HttpStatus;
 import com.asule.redpocket.domain.CommonResult;
 import com.asule.redpocket.domain.RedDetail;
 import com.asule.redpocket.domain.RedGrab;
@@ -55,8 +56,8 @@ public class RedPocketController {
 
         try {
             //1.判断数据合法性
-            if (redRecord.getMoneyTotal() < 0 || redRecord.getAmount() < 0 ||
-                    redRecord.getMoneyTotal() == null || redRecord.getAmount() == null) {
+            if (redRecord.getMoneyTotal() < 0 || redRecord.getTotal() < 0 ||
+                    redRecord.getMoneyTotal() == null || redRecord.getTotal() == null) {
                 throw new RuntimeException("红包金额或人数不能小于0");
             }
 
@@ -82,10 +83,10 @@ public class RedPocketController {
         } catch (Exception e) {
             e.printStackTrace();
             log.info("***************发送红包失败");
-            return new CommonResult(444, e.getMessage(), "发送红包失败");
+            return new CommonResult(HttpStatus.HTTP_NOT_ACCEPTABLE, e.getMessage(), "发送红包失败");
         }
         log.info("***************发送红包成功");
-        return new CommonResult(200,redDetailList ,"发送红包成功");
+        return new CommonResult(HttpStatus.HTTP_OK,redDetailList ,"发送红包成功");
     }
 
     @PostMapping("/red/pocket/grab")
@@ -93,28 +94,34 @@ public class RedPocketController {
         CommonResult commonResult =new CommonResult();
 
         try {
-            //1.判断当前用户是否已经抢过红包
+
+            //1.判断当前红包是否可以抢
+            log.info("********************判断当前红包是否可以抢");
+            if (redRecordService.getById(redPocketId).getTotal() == 0)
+                return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
+                        .setMessage("当前红包不能抢");
+
+            //2.判断当前用户是否已经抢过红包
             log.info("********************判断当前用户是否已经抢过红包");
             String token = request.getHeader("token");
             DecodedJWT verify = JwtUtils.verify(token);
             String phone = verify.getClaim("phone").asString();
             if (redGrabService.isExists(phone,redPocketId)){
-                commonResult.setCode(406)
+                return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
                         .setMessage("当前用户已经抢过红包");
             }
 
-            //2.抢红包
+            //3.抢红包
             log.info("********************抢红包");
             RedGrab redGrab = redGrabService.grabRedPocket(phone,redPocketId);
-            commonResult.setCode(200)
+            return commonResult.setCode(HttpStatus.HTTP_OK)
                     .setMessage("抢红包成功")
                     .setData(redGrab);
         } catch (Exception e) {
-            e.printStackTrace();
-            commonResult.setCode(406)
+            log.error("抢红包失败，redPocketId={}, error={}", redPocketId, e.getMessage(), e);
+            return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
                     .setMessage("抢红包失败")
                     .setData(e.getMessage());
         }
-        return commonResult;
     }
 }

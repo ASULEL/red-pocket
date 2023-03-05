@@ -9,7 +9,7 @@
             <result property="phone" column="phone" jdbcType="CHAR"/>
             <result property="redPocket" column="red_pocket" jdbcType="CHAR"/>
             <result property="moneyTotal" column="money_total" jdbcType="INTEGER"/>
-            <result property="amount" column="amount" jdbcType="INTEGER"/>
+            <result property="total" column="total" jdbcType="INTEGER"/>
             <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
             <result property="isActive" column="is_active" jdbcType="TINYINT"/>
     </resultMap>

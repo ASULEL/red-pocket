@@ -26,4 +26,5 @@ public class MybatisPlusText {
     void select(){
         log.info("*********************查询id为1的红包" + redRecordMapper.selectById(1));
     }
+
 }

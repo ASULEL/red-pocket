@@ -7,7 +7,7 @@
     <resultMap id="BaseResultMap" type="com.asule.redpocket.domain.RedGrab">
             <id property="id" column="id" jdbcType="INTEGER"/>
             <result property="phone" column="phone" jdbcType="VARCHAR"/>
-            <result property="redPocket" column="red_pocket" jdbcType="VARCHAR"/>
+            <result property="recordId" column="record_id" jdbcType="VARCHAR"/>
             <result property="amount" column="amount" jdbcType="DECIMAL"/>
             <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
     </resultMap>
@@ -17,16 +17,4 @@
         amount,create_time
     </sql>
 
-    <select id="randRedDetail" parameterType="INTEGER" resultType="RedDetail">
-        SELECT
-            *
-        FROM
-            red_detail
-        WHERE
-            record_id = #{redPocketId}
-          AND is_active = 1
-        ORDER BY
-            rand()
-            LIMIT 1
-    </select>
 </mapper>

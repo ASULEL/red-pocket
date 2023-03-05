@@ -1,6 +1,5 @@
 package com.asule.redpocket.mapper;
 
-import com.asule.redpocket.domain.RedDetail;
 import com.asule.redpocket.domain.RedGrab;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
@@ -11,7 +10,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity com.asule.redpocket.domain.RedGrab
 */
 public interface RedGrabMapper extends BaseMapper<RedGrab> {
-    RedDetail randRedDetail(Integer redPocketId);
 }
 
 
