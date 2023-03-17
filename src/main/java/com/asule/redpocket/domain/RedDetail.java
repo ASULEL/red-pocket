@@ -4,10 +4,11 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
-import lombok.Data;
 
 /**
  * 
@@ -25,17 +26,12 @@ public class RedDetail implements Serializable {
     /**
      * 红包记录id
      */
-    private Integer recordId;
+    private String recordId;
 
     /**
      * 金额（单位为分）
      */
     private BigDecimal amount;
-
-    /**
-     * 
-     */
-    private Integer isActive;
 
     /**
      * 

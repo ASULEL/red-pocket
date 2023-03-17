@@ -3,6 +3,8 @@ package com.asule.redpocket.service;
 import com.asule.redpocket.domain.RedGrab;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.math.BigDecimal;
+
 /**
 * @author 12707
 * @description 针对表【red_grab】的数据库操作Service
@@ -10,7 +12,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface RedGrabService extends IService<RedGrab> {
 
-    RedGrab grabRedPocket(String phone, Integer redPocketId);
+    BigDecimal grabRedPocket(String phone, String encode);
 
-    boolean isExists(String phone,Integer redPocketId);
+    void recordRobedPacket(String phone, String encode, BigDecimal amount);
 }

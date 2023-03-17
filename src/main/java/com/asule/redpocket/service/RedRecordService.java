@@ -13,5 +13,5 @@ import java.util.List;
 */
 public interface RedRecordService extends IService<RedRecord> {
 
-    List<RedDetail> sendRedPocket(RedRecord redRecord);
+    List<RedDetail> sendRedPocket(RedRecord redRecord,List<Integer> list);
 }

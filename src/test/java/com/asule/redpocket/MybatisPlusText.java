@@ -25,6 +25,7 @@ public class MybatisPlusText {
     @Test
     void select(){
         log.info("*********************查询id为1的红包" + redRecordMapper.selectById(1));
+        System.out.println(String.valueOf(System.nanoTime()));
     }
 
 }

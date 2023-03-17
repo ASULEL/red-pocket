@@ -7,11 +7,9 @@
     <resultMap id="BaseResultMap" type="com.asule.redpocket.domain.RedRecord">
             <id property="id" column="id" jdbcType="INTEGER"/>
             <result property="phone" column="phone" jdbcType="CHAR"/>
-            <result property="redPocket" column="red_pocket" jdbcType="CHAR"/>
             <result property="moneyTotal" column="money_total" jdbcType="INTEGER"/>
             <result property="total" column="total" jdbcType="INTEGER"/>
             <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
-            <result property="isActive" column="is_active" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">

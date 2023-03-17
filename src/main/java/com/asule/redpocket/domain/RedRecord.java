@@ -1,8 +1,6 @@
 package com.asule.redpocket.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -19,18 +17,12 @@ public class RedRecord implements Serializable {
     /**
      * 
      */
-    @TableId(type = IdType.AUTO)
-    private Integer id;
+    private String id;
 
     /**
      * 用户账号
      */
     private String phone;
-
-    /**
-     * 红包全局唯一标识串
-     */
-    private String redPocket;
 
     /**
      * 总金额（单位为分）

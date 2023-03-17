@@ -1,23 +1,22 @@
 package com.asule.redpocket.service.impl;
 
-import com.asule.redpocket.domain.CommonResult;
-import com.asule.redpocket.domain.RedDetail;
 import com.asule.redpocket.domain.RedGrab;
-import com.asule.redpocket.domain.RedRecord;
 import com.asule.redpocket.mapper.RedDetailMapper;
 import com.asule.redpocket.mapper.RedGrabMapper;
 import com.asule.redpocket.mapper.RedRecordMapper;
 import com.asule.redpocket.service.RedGrabService;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.Date;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author 12707
@@ -32,75 +31,92 @@ public class RedGrabServiceImpl extends ServiceImpl<RedGrabMapper, RedGrab>
     @Autowired
     private RedRecordMapper redRecordMapper;
 
-    @Autowired
+    @Resource
     private RedDetailMapper redDetailMapper;
 
-    @Autowired
+    @Resource
     private RedGrabMapper redGrabMapper;
 
-    private Lock lock = new ReentrantLock();
+    @Resource
+    private RedisTemplate redisTemplate;
 
+    private final String prefix = "redPocket:";
+
+    /**
+     * 抢红包核心业务，需要在缓存中查找红包并且进行记录，青岛红包后需要调用redDetailMapper写入数据库
+     *
+     * @param phone
+     * @param encode
+     * @return
+     */
     @Override
-    public RedGrab grabRedPocket(String phone, Integer redPocketId) {
-        lock.lock();
-        CommonResult commonResult = new CommonResult();
+    public BigDecimal grabRedPocket(String phone, String encode) {
+        ValueOperations valueOperations = redisTemplate.opsForValue();
+        //1.判断当前用户是否已经抢过红包，若抢过直接返回金额
+        Object obj = valueOperations.get(phone + ":" + encode + ":grab");
+        if (obj != null)
+            return new BigDecimal(obj.toString());
+        //2.判断缓存中是否有剩余红包
+        boolean flag = isExists(encode);
+        //3.有红包就进入拆红包业务逻辑
+        if (flag) {
+            //setIfAbsent方法可以在键不存在时设置键值，如果键已经存在，方法会返回false，表示获取锁失败，否则返回true，表示获取锁成功。
+            final String lockKey = phone + ":" + encode + "-lock";
+            boolean lock = valueOperations.setIfAbsent(lockKey, encode);
+            redisTemplate.expire(lockKey, 24L, TimeUnit.HOURS);
 
-        //1.获取数据库中随机获取redId的一条记录
-        log.info("********************抢红包业务层");
-        log.info("********************获取数据库中随机获取redPocketId:{}的一条记录", redPocketId);
-        QueryWrapper<RedDetail> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("record_id", redPocketId)
-                .eq("is_active", 1)
-                .last("ORDER BY RAND() LIMIT 1");
-        RedDetail redDetail = redDetailMapper.selectOne(queryWrapper);
-        log.info("随机生成redDetail：" + redDetail);
-        if (redDetail == null) {
-            throw new RuntimeException("没有该红包~~~");
+            try {
+                if (lock) {
+                    //3.1 从小红包列表中拆一个红包
+                    Integer value = (Integer) redisTemplate.opsForList().rightPop(prefix + encode);
+                    if (value != null) {
+                        String pocketTotal = prefix + encode + ":total";
+                        Integer currentTotal = valueOperations.get(pocketTotal) != null ? (Integer) valueOperations.get(pocketTotal) : 0;
+                        valueOperations.increment(pocketTotal, -1);
+                        BigDecimal grabMoney = new BigDecimal(value).divide(new BigDecimal(100));
+                        //抢到红包的信息记录进入数据库
+                        recordRobedPacket(phone, encode, new BigDecimal(value.toString()));
+                        //当前用户抢过红包了，使用key进行标识，设置过期时间为一天
+                        valueOperations.set(phone + ":" + encode + ":grab", grabMoney, 24L, TimeUnit.HOURS);
+                        log.info("当前用户抢到红包了：phone={} redId={} 金额={}", phone, encode, grabMoney);
+                        return grabMoney;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("加分布式锁失败");
+                e.printStackTrace();
+            }
         }
-
-        try {
-            //2.随机选取一个集合中的数据进行抢（将改条RedDetail中的isActive改为0）
-            redDetail.setIsActive(0);
-            UpdateWrapper<RedDetail> wrapper = new UpdateWrapper<>();
-            wrapper.lambda()
-                    .set(RedDetail::getIsActive,0)
-                    .eq(RedDetail::getId,redDetail.getId());
-            redDetailMapper.update(null,wrapper);
-
-            //3.抢红包成功整体红包数减1
-            RedRecord redRecord = redRecordMapper.selectById(redPocketId);
-            UpdateWrapper<RedRecord> wrapper1 = new UpdateWrapper<>();
-            wrapper1.lambda()
-                    .set(RedRecord::getTotal,redRecord.getTotal() - 1)
-                    .eq(RedRecord::getId,redPocketId);
-            redRecordMapper.update(null,wrapper1);
-
-
-            //4.抢红包成功记录添加入数据库
-            RedGrab redGrab = new RedGrab();
-            redGrab.setPhone(phone)
-                    .setAmount(redDetail.getAmount())
-                    .setRecordId(redPocketId)
-                    .setCreateTime(new Date());
-            redGrabMapper.insert(redGrab);
-            return redGrab;
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            lock.unlock();
-        }
-        throw new RuntimeException("抢红包异常  ┭┮﹏┭┮");
+        //当前用户没有抢到红包
+        return null;
     }
 
     @Override
-    public boolean isExists(String phone, Integer redPocketId) {
-        //1.用户是否已经获取过红包
-        log.info("********************红包详情业务层");
-        QueryWrapper queryWrapper = new QueryWrapper();
-        queryWrapper.eq("phone", phone);
-        queryWrapper.eq("record_id", redPocketId);
-        return redGrabMapper.selectOne(queryWrapper) != null;
+    @Async
+    public void recordRobedPacket(String phone, String encode, BigDecimal amount) {
+        RedGrab redGrab = new RedGrab();
+        redGrab.setPhone(phone);
+        redGrab.setRecordId(encode);
+        redGrab.setAmount(amount.divide(new BigDecimal(100)));
+        redGrab.setCreateTime(new Date());
+        //插入数据库
+        redGrabMapper.insert(redGrab);
     }
+
+    /**
+     * 判断缓存中是否还有红包
+     *
+     * @param encode
+     * @return
+     */
+    private boolean isExists(String encode) {
+
+        Integer amount = (Integer) redisTemplate.opsForValue().get(prefix + encode + ":total");
+        if (amount != null && amount > 0)
+            return true;
+        return false;
+    }
+
 }
 
 

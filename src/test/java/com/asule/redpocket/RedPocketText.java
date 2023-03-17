@@ -38,13 +38,13 @@ public class RedPocketText {
     public void addUser() {
         Connection conn = null;
         PreparedStatement ps = null;
-        FileWriter fw = null;
+        FileWriter fw1 = null;
         try {
             // 1.注册JDBC驱动
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            Class.forName(JDBC_DRIVER);
 
             // 2.打开连接
-            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/redpocket", "root", "123456");
+            conn = DriverManager.getConnection(DB_URL, USER, PASSWORD);
 
             // 3.关闭自动提交
             conn.setAutoCommit(false);
@@ -57,7 +57,7 @@ public class RedPocketText {
 
             // 6.设置参数
             File file = new File("C:\\Users\\12707\\Desktop\\redPocketUser.txt");
-            fw = new FileWriter(file);
+            fw1 = new FileWriter(file);
 
 
             for (int i = 0; i < 100; i++) {
@@ -66,8 +66,8 @@ public class RedPocketText {
 
                 // 7.添加到批量操作
                 //输出插入的文本文件
-                fw.write("user" + i + ",");
-                fw.write("123456\n");
+                fw1.write("user" + i + ",");
+                fw1.write("123456\n");
                 ps.addBatch();
             }
 
@@ -105,8 +105,8 @@ public class RedPocketText {
                 e.printStackTrace();
             }
             try {
-                if (fw != null)
-                    fw.close();
+                if (fw1 != null)
+                    fw1.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -118,12 +118,14 @@ public class RedPocketText {
     //2.用户登陆
     private static final String URL = "http://localhost:8888/user/login?phone={phone}&password={password}";
 
+
     @Test
     public void BFSTest() {
-        FileWriter fw = null;
+        FileWriter fw1 = null;
+        FileWriter fw2 = null;
         try {
 
-            File file = new File("C:\\Users\\12707\\Desktop\\redPocketUser.txt");
+            File file = new File("C:\\Users\\12707\\Desktop\\毕设\\redPocketUser.txt");
             Scanner scanner = new Scanner(file);
             List<String> strList = new ArrayList<>();
             while (scanner.hasNextLine()) {
@@ -131,8 +133,10 @@ public class RedPocketText {
                 strList.add(line);
             }
             String[] strArray = strList.stream().toArray(String[]::new);
-            File file1 = new File("C:\\Users\\12707\\Desktop\\result.txt");
-            fw = new FileWriter(file1);
+            File file1 = new File("C:\\Users\\12707\\Desktop\\毕设\\result.txt");
+            fw1 = new FileWriter(file1);
+            File file2 = new File("C:\\Users\\12707\\Desktop\\毕设\\grabThread.txt");
+            fw2 = new FileWriter(file2);
             //1.读取用户信息
             for (int i = 0; i < 100; i++) {
                 String[] splitStr = strArray[i].split(",");
@@ -141,21 +145,31 @@ public class RedPocketText {
                 user.setPassword(splitStr[1]);
                 ResponseEntity<CommonResult> responseEntity = restTemplate.getForEntity(URL, CommonResult.class, user.getPhone(), user.getPassword());
                 //2.获取返回结果
-                String responseString = responseEntity.getBody().getData().toString();
-                String token = responseString.split("=")[1].replace("}", "");
-                log.info(user.getPhone() + "," + "," + user.getPassword() + token);
-                //3.写入文件
-                fw.write(user.getPhone() + ",");
-                fw.write(user.getPassword() + ",");
-                fw.write(token + "\n");
+                String str = responseEntity.getBody().getData().toString();
+                String token = str.split(":")[2].toString();
+                log.info(user.getPhone() + "," + user.getPassword() + "," + token);
+                //3.写入登陆过的用户信息
+                fw1.write(user.getPhone() + ",");
+                fw1.write(user.getPassword() + ",");
+                fw1.write(token + "\n");
+                //4.写入将要并发抢红包的线程
+                fw2.write(user.getPhone() + ",");
+                fw2.write("sxj87z,");
+                fw2.write(token + "\n");
             }
             log.info("***********************登陆成功");
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             try {
-                if (fw != null)
-                    fw.close();
+                if (fw1 != null)
+                    fw1.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                if (fw2 != null)
+                    fw2.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }

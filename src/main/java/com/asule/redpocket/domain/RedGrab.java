@@ -33,7 +33,7 @@ public class RedGrab implements Serializable {
     /**
      * 红包标识
      */
-    private Integer recordId;
+    private String recordId;
 
     /**
      * 红包金额（单位为元）

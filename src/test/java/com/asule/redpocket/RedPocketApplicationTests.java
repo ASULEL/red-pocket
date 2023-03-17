@@ -1,6 +1,5 @@
 package com.asule.redpocket;
 
-import com.asule.redpocket.util.IdGeneratorSnowFlake;
 import com.asule.redpocket.util.RedEnvelopeUtils;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
@@ -18,12 +17,6 @@ import java.util.List;
 @SpringBootTest
 @Slf4j
 class RedPocketApplicationTests {
-
-    @Test
-    void snowFlake() {
-        long id = new IdGeneratorSnowFlake().snowflakeId();
-        log.info("******************雪花算法获取id："+id);
-    }
 
     @Test
     void redPocket(){

@@ -3,21 +3,24 @@ package com.asule.redpocket.controller;
 import cn.hutool.http.HttpStatus;
 import com.asule.redpocket.domain.CommonResult;
 import com.asule.redpocket.domain.RedDetail;
-import com.asule.redpocket.domain.RedGrab;
 import com.asule.redpocket.domain.RedRecord;
 import com.asule.redpocket.service.RedDetailService;
 import com.asule.redpocket.service.RedGrabService;
 import com.asule.redpocket.service.RedRecordService;
-import com.asule.redpocket.util.JwtUtils;
-import com.auth0.jwt.interfaces.DecodedJWT;
+import com.asule.redpocket.util.RedEnvelopeUtils;
+import com.asule.redpocket.util.ShortKeyGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
+import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * 简要描述
@@ -34,11 +37,14 @@ public class RedPocketController {
     @Autowired
     private RedRecordService redRecordService;
 
-    @Autowired
+    @Resource
     private RedDetailService redDetailService;
 
-    @Autowired
+    @Resource
     private RedGrabService redGrabService;
+
+    @Resource
+    private RedisTemplate redisTemplate;
 
     private final String prefix = "redPocket:";
 
@@ -50,75 +56,72 @@ public class RedPocketController {
      * @return
      */
     @PostMapping("/red/pocket/send")
-    public CommonResult sendRedPocket(RedRecord redRecord, HttpServletRequest request) {
+    public CommonResult sendRedPocket(RedRecord redRecord) {
 
         List<RedDetail> redDetailList;
 
         try {
             //1.判断数据合法性
-            if (redRecord.getMoneyTotal() < 0 || redRecord.getTotal() < 0 ||
+            if (redRecord.getMoneyTotal() <= 0 || redRecord.getTotal() <= 0 ||
                     redRecord.getMoneyTotal() == null || redRecord.getTotal() == null) {
                 throw new RuntimeException("红包金额或人数不能小于0");
             }
 
             //2.设置创建红包的时间和账户
-            log.info("********************设置创建红包的时间和账户");
-            String token = request.getHeader("token");
-            DecodedJWT verify = JwtUtils.verify(token);
-            String phone = verify.getClaim("phone").asString();
-            log.info("********************phone: {}", phone);
-            redRecord.setPhone(phone);
             redRecord.setCreateTime(new Date());
 
-            //3.雪花算法生成id
-            //log.info("********************雪花算法生成id");
-            //long id = new IdGeneratorSnowFlake().snowflakeId();
-            //log.info("********************所得id:" + id);
-            //String redPocketFlag = prefix + redRecord.getPhone() + ":" + id;
-            //log.info("********************所得红包唯一标识:" + id);
-            //redRecord.setRedPocket(redPocketFlag);
+            //3.生成随机红包
+            //使用二倍均值算法生成随机金额红包
+            List<Integer> list = RedEnvelopeUtils.divideRedPackage(redRecord.getMoneyTotal() * 100, redRecord.getTotal());
 
-            //4.生成随机红包
-            redDetailList = redRecordService.sendRedPocket(redRecord);
+            //4.生成redPacket唯一标识
+            UUID uuid = UUID.randomUUID();
+            String encode = ShortKeyGenerator.encode(uuid);
+            while (redisTemplate.hasKey(encode)) {
+                uuid = UUID.randomUUID();
+                encode = ShortKeyGenerator.encode(uuid);
+            }
+            String redId = new StringBuffer()
+                    .append("redPocket:")
+                    .append(encode).toString();
+
+            log.info("****************list:" + list);
+            redisTemplate.opsForList().leftPushAll(redId, list);
+            //5.将红包的总数记录redis
+            redisTemplate.opsForValue().set(redId + ":total", redRecord.getTotal());
+            redRecord.setId(encode);
+            redRecordService.sendRedPocket(redRecord, list);
+            log.info("***************发送红包成功");
+            return new CommonResult(HttpStatus.HTTP_OK, encode, "发送红包成功");
         } catch (Exception e) {
             e.printStackTrace();
-            log.info("***************发送红包失败");
+            log.error("***************发送红包失败");
             return new CommonResult(HttpStatus.HTTP_NOT_ACCEPTABLE, e.getMessage(), "发送红包失败");
         }
-        log.info("***************发送红包成功");
-        return new CommonResult(HttpStatus.HTTP_OK,redDetailList ,"发送红包成功");
     }
 
     @PostMapping("/red/pocket/grab")
-    public CommonResult grabRedPocket(Integer redPocketId,HttpServletRequest request) {
-        CommonResult commonResult =new CommonResult();
-
+    public CommonResult grabRedPocket(String encode, String phone) {
+        CommonResult commonResult = new CommonResult();
+        Double money = null;
         try {
-
-            //1.判断当前红包是否可以抢
-            log.info("********************判断当前红包是否可以抢");
-            if (redRecordService.getById(redPocketId).getTotal() == 0)
-                return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
-                        .setMessage("当前红包不能抢");
-
-            //2.判断当前用户是否已经抢过红包
-            log.info("********************判断当前用户是否已经抢过红包");
-            String token = request.getHeader("token");
-            DecodedJWT verify = JwtUtils.verify(token);
-            String phone = verify.getClaim("phone").asString();
-            if (redGrabService.isExists(phone,redPocketId)){
-                return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
-                        .setMessage("当前用户已经抢过红包");
-            }
-
-            //3.抢红包
             log.info("********************抢红包");
-            RedGrab redGrab = redGrabService.grabRedPocket(phone,redPocketId);
+            if ((money = (Double) redisTemplate.opsForValue().get(phone + ":" + encode + ":grab")) != null){
+                return commonResult.setCode(HttpStatus.HTTP_OK)
+                        .setMessage("已经抢过红包")
+                        .setData(money);
+            }
+            BigDecimal result = redGrabService.grabRedPocket(phone, encode);
+            if (Objects.isNull(result))
+                return commonResult.setCode(HttpStatus.HTTP_NO_CONTENT)
+                        .setMessage("红包被抢光了")
+                        .setData(null);
+
             return commonResult.setCode(HttpStatus.HTTP_OK)
                     .setMessage("抢红包成功")
-                    .setData(redGrab);
+                    .setData(result);
         } catch (Exception e) {
-            log.error("抢红包失败，redPocketId={}, error={}", redPocketId, e.getMessage(), e);
+            log.error("抢红包失败，redPocketId={}, error={}", encode, e.getMessage(), e);
             return commonResult.setCode(HttpStatus.HTTP_NOT_ACCEPTABLE)
                     .setMessage("抢红包失败")
                     .setData(e.getMessage());

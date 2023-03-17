@@ -11,6 +11,11 @@ spring:
     username: root
     password: 123456
 
+  redis:
+    host: r-bp1ro436w8i56cjjmjpd.redis.rds.aliyuncs.com
+    password: asule:leilei@1
+    port: 6379
+
 mybatis-plus:
   type-aliases-package: com.asule.redpocket
   mapper-locations:  classpath:mapper/*.xml
