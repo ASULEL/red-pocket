@@ -154,7 +154,7 @@ public class RedPocketText {
                 fw1.write(token + "\n");
                 //4.写入将要并发抢红包的线程
                 fw2.write(user.getPhone() + ",");
-                fw2.write("sxj87z,");
+                fw2.write("9Lvaoe,");
                 fw2.write(token + "\n");
             }
             log.info("***********************登陆成功");
